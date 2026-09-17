@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { EndTimePicker } from '@/components/custom/end-time-picker';
+import { StrategyControls } from '@/components/custom/strategy-controls';
 import type { DerivWS, ActiveSymbol, ProposalInfo, BuyResult } from '@deriv/core';
 import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
 
@@ -43,6 +44,16 @@ interface TradeControlsProps {
   onClearBuyResult: () => void;
   /** Whether the user is authenticated — shows the View your positions link when true. */
   isAuthenticated?: boolean;
+  autoStrategy: boolean;
+  onAutoStrategyChange: (value: boolean) => void;
+  martingale: boolean;
+  onMartingaleChange: (value: boolean) => void;
+  takeProfit: string;
+  onTakeProfitChange: (value: string) => void;
+  stopLoss: string;
+  onStopLossChange: (value: string) => void;
+  sessionProfit: number;
+  strategyStopped: boolean;
 }
 
 export function TradeControls({
@@ -71,6 +82,16 @@ export function TradeControls({
   buyError,
   onClearBuyResult,
   isAuthenticated,
+  autoStrategy,
+  onAutoStrategyChange,
+  martingale,
+  onMartingaleChange,
+  takeProfit,
+  onTakeProfitChange,
+  stopLoss,
+  onStopLossChange,
+  sessionProfit,
+  strategyStopped,
 }: TradeControlsProps) {
   const { localize } = useAppTranslations();
 
@@ -135,6 +156,19 @@ export function TradeControls({
           <Localize i18n_default_text="Fall" />
         </ToggleGroupItem>
       </ToggleGroup>
+
+      <StrategyControls
+        autoStrategy={autoStrategy}
+        onAutoStrategyChange={onAutoStrategyChange}
+        martingale={martingale}
+        onMartingaleChange={onMartingaleChange}
+        takeProfit={takeProfit}
+        onTakeProfitChange={onTakeProfitChange}
+        stopLoss={stopLoss}
+        onStopLossChange={onStopLossChange}
+        sessionProfit={sessionProfit}
+        strategyStopped={strategyStopped}
+      />
 
       {/* Allow equals */}
       <div className="flex items-center justify-between">

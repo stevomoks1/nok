@@ -29,6 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { EndTimePicker } from '@/components/custom/end-time-picker';
+import { StrategyControls } from '@/components/custom/strategy-controls';
 import type { DerivWS, ActiveSymbol, ProposalInfo, BuyResult } from '@deriv/core';
 import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
 import type { BlockKey, ControlKey, RiseFallAppConfig, StyleVariant } from '../lib/app-config';
@@ -166,6 +167,16 @@ export interface ConfigurableTradeControlsProps {
   buyError: string | null;
   onClearBuyResult: () => void;
   isAuthenticated?: boolean;
+  autoStrategy: boolean;
+  onAutoStrategyChange: (value: boolean) => void;
+  martingale: boolean;
+  onMartingaleChange: (value: boolean) => void;
+  takeProfit: string;
+  onTakeProfitChange: (value: string) => void;
+  stopLoss: string;
+  onStopLossChange: (value: string) => void;
+  sessionProfit: number;
+  strategyStopped: boolean;
   /** Edit mode — control rows become selectable (click opens its accordion). */
   editMode?: boolean;
   /** Called when a control row is clicked in edit mode. */
@@ -222,6 +233,16 @@ export function ConfigurableTradeControls(props: ConfigurableTradeControlsProps)
     buyError,
     onClearBuyResult,
     isAuthenticated,
+    autoStrategy,
+    onAutoStrategyChange,
+    martingale,
+    onMartingaleChange,
+    takeProfit,
+    onTakeProfitChange,
+    stopLoss,
+    onStopLossChange,
+    sessionProfit,
+    strategyStopped,
     editMode,
     onSelect,
     selectedKey,
@@ -694,6 +715,18 @@ export function ConfigurableTradeControls(props: ConfigurableTradeControlsProps)
 
   return (
     <div className="w-full space-y-3 lg:space-y-4">
+      <StrategyControls
+        autoStrategy={autoStrategy}
+        onAutoStrategyChange={onAutoStrategyChange}
+        martingale={martingale}
+        onMartingaleChange={onMartingaleChange}
+        takeProfit={takeProfit}
+        onTakeProfitChange={onTakeProfitChange}
+        stopLoss={stopLoss}
+        onStopLossChange={onStopLossChange}
+        sessionProfit={sessionProfit}
+        strategyStopped={strategyStopped}
+      />
       {config.order.map((key) => {
         // Chart only renders where a chartSlot is provided (the no-code mobile
         // column). On desktop the chart lives in its own column, so it's omitted

@@ -131,6 +131,16 @@ export interface RiseFallViewProps {
   buyResult: BuyResult | null;
   buyError: string | null;
   clearBuyResult: () => void;
+  autoStrategy: boolean;
+  setAutoStrategy: (value: boolean) => void;
+  martingale: boolean;
+  setMartingale: (value: boolean) => void;
+  takeProfit: string;
+  setTakeProfit: (value: string) => void;
+  stopLoss: string;
+  setStopLoss: (value: string) => void;
+  sessionProfit: number;
+  strategyStopped: boolean;
 
   // Positions
   openPositions: OpenPosition[];
@@ -211,6 +221,16 @@ export function RiseFallView({
   buyResult,
   buyError,
   clearBuyResult,
+  autoStrategy,
+  setAutoStrategy,
+  martingale,
+  setMartingale,
+  takeProfit,
+  setTakeProfit,
+  stopLoss,
+  setStopLoss,
+  sessionProfit,
+  strategyStopped,
   openPositions,
   chartData,
   getQuotes,
@@ -427,6 +447,16 @@ export function RiseFallView({
         buyResult={buyResult}
         buyError={buyError}
         onClearBuyResult={clearBuyResult}
+        autoStrategy={autoStrategy}
+        onAutoStrategyChange={setAutoStrategy}
+        martingale={martingale}
+        onMartingaleChange={setMartingale}
+        takeProfit={takeProfit}
+        onTakeProfitChange={setTakeProfit}
+        stopLoss={stopLoss}
+        onStopLossChange={setStopLoss}
+        sessionProfit={sessionProfit}
+        strategyStopped={strategyStopped}
         isAuthenticated={authState === 'authenticated'}
         editMode={editMode}
         onSelect={onSelect}
@@ -541,6 +571,16 @@ export function RiseFallView({
                       buyResult={buyResult}
                       buyError={buyError}
                       onClearBuyResult={clearBuyResult}
+                      autoStrategy={autoStrategy}
+                      onAutoStrategyChange={setAutoStrategy}
+                      martingale={martingale}
+                      onMartingaleChange={setMartingale}
+                      takeProfit={takeProfit}
+                      onTakeProfitChange={setTakeProfit}
+                      stopLoss={stopLoss}
+                      onStopLossChange={setStopLoss}
+                      sessionProfit={sessionProfit}
+                      strategyStopped={strategyStopped}
                       isAuthenticated={authState === 'authenticated'}
                     />
                   </CardContent>
