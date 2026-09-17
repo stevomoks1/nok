@@ -130,6 +130,7 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
   const previousStake = useRef<string>('10');
   const baseStake = useRef<string>('10');
   const lastAutoTradeEpoch = useRef<number | null>(null);
+  const pendingEntryEpoch = useRef<number | null>(null);
   const peakProfit = useRef(0);
   const currentLossStreak = useRef(0);
   const lossStreakTotal = useRef(0);
@@ -151,13 +152,14 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
         setLastCandleDirection(previousDirection);
         setAutoSignal(previousDirection ? { epoch: candle.epoch, direction: previousDirection } : null);
         setCandleEpoch(candle.epoch);
+        pendingEntryEpoch.current = previousDirection ? candle.epoch : null;
       }
       candleRef.current = { epoch: candle.epoch, open: candle.open, close: candle.close };
     });
     tradingWs.send({
       ticks_history: activeSymbol.underlying_symbol,
       style: 'candles',
-      granularity: 60,
+      granularity: candleTimeframe,
       count: 2,
       subscribe: 1,
     }).catch(() => {});
@@ -166,6 +168,7 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
       unsubscribe();
       candleRef.current = null;
       setAutoSignal(null);
+      pendingEntryEpoch.current = null;
       tradingWs.send({ forget_all: 'ohlc' }).catch(() => {});
     };
   }, [tradingWs, tradingIsConnected, activeSymbol, candleTimeframe]);
@@ -312,10 +315,12 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
   useEffect(() => {
     if (!autoStrategy || strategyStopped || !isAuthenticated || !proposal || !candleEpoch || isBuying) return;
     if (!autoSignal || autoSignal.epoch !== candleEpoch) return;
+    if (pendingEntryEpoch.current !== candleEpoch) return;
     const expectedContractType = allowEquals ? `${autoSignal.direction}E` : autoSignal.direction;
     if (proposal.contractType !== expectedContractType || proposal.durationSeconds !== candleTimeframe) return;
     if (lastAutoTradeEpoch.current === candleEpoch || openPositions.length > 0) return;
     lastAutoTradeEpoch.current = candleEpoch;
+    pendingEntryEpoch.current = null;
     void buyWithProposal(proposal);
   }, [autoStrategy, strategyStopped, isAuthenticated, proposal, candleEpoch, autoSignal, allowEquals, candleTimeframe, isBuying, openPositions.length, buyWithProposal]);
 
