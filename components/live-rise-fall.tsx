@@ -95,6 +95,16 @@ export function LiveRiseFall({
       buyResult={trading.buyResult}
       buyError={trading.buyError}
       clearBuyResult={trading.clearBuyResult}
+      autoStrategy={trading.autoStrategy}
+      setAutoStrategy={trading.setAutoStrategy}
+      martingale={trading.martingale}
+      setMartingale={trading.setMartingale}
+      takeProfit={trading.takeProfit}
+      setTakeProfit={trading.setTakeProfit}
+      stopLoss={trading.stopLoss}
+      setStopLoss={trading.setStopLoss}
+      sessionProfit={trading.sessionProfit}
+      strategyStopped={trading.strategyStopped}
       openPositions={trading.openPositions}
       sellContract={trading.sellContract}
       sellingId={trading.sellingId}

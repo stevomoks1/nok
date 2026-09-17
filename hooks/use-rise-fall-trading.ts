@@ -56,6 +56,16 @@ interface UseRiseFallTradingReturn {
   sellingId: number | null;
   sellError: string | null;
   clearSellError: () => void;
+  autoStrategy: boolean;
+  setAutoStrategy: (value: boolean) => void;
+  martingale: boolean;
+  setMartingale: (value: boolean) => void;
+  takeProfit: string;
+  setTakeProfit: (value: string) => void;
+  stopLoss: string;
+  setStopLoss: (value: string) => void;
+  sessionProfit: number;
+  strategyStopped: boolean;
 }
 
 export type UseRiseFallTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed'>;
@@ -90,6 +100,91 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [endTime, setEndTime] = useState<string>('');
   const [durationOptionsSymbol, setDurationOptionsSymbol] = useState<string | null>(null);
+  const [autoStrategy, setAutoStrategy] = useState(false);
+  const [martingale, setMartingale] = useState(false);
+  const [takeProfit, setTakeProfit] = useState('0');
+  const [stopLoss, setStopLoss] = useState('0');
+  const [sessionProfit, setSessionProfit] = useState(0);
+  const [strategyStopped, setStrategyStopped] = useState(false);
+  const [lastCandleDirection, setLastCandleDirection] = useState<Direction | null>(null);
+  const [candleEpoch, setCandleEpoch] = useState<number | null>(null);
+  const [candleClose, setCandleClose] = useState<number | null>(null);
+  const [candleOpen, setCandleOpen] = useState<number | null>(null);
+  const candleRef = useRef<{ epoch: number; open: number; close: number } | null>(null);
+  const previousClosedIds = useRef<Set<number>>(new Set());
+  const previousStake = useRef<string>('10');
+  const baseStake = useRef<string>('10');
+  const lastAutoTradeEpoch = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!tradingWs || !tradingIsConnected || !activeSymbol) return;
+    let active = true;
+    const unsubscribe = tradingWs.onMessage((data) => {
+      if (data.msg_type !== 'ohlc') return;
+      const candle = data.ohlc as { epoch?: number; open?: number; close?: number } | undefined;
+      if (!candle?.epoch || candle.open === undefined || candle.close === undefined) return;
+      if (!active) return;
+      const previous = candleRef.current;
+      if (previous && previous.epoch !== candle.epoch) {
+        setLastCandleDirection(previous.close >= previous.open ? 'CALL' : 'PUT');
+      }
+      candleRef.current = { epoch: candle.epoch, open: candle.open, close: candle.close };
+      setCandleEpoch(candle.epoch);
+      setCandleOpen(candle.open);
+      setCandleClose(candle.close);
+    });
+    tradingWs.send({
+      ticks_history: activeSymbol.underlying_symbol,
+      style: 'candles',
+      granularity: 60,
+      count: 2,
+      subscribe: 1,
+    }).catch(() => {});
+    return () => {
+      active = false;
+      unsubscribe();
+      candleRef.current = null;
+      tradingWs.send({ forget_all: 'ohlc' }).catch(() => {});
+    };
+  }, [tradingWs, tradingIsConnected, activeSymbol]);
+
+  useEffect(() => {
+    if (candleOpen === null || candleClose === null) return;
+    setLastCandleDirection(candleClose >= candleOpen ? 'CALL' : 'PUT');
+  }, [candleEpoch, candleOpen, candleClose]);
+
+  useEffect(() => {
+    if (!autoStrategy || strategyStopped || !lastCandleDirection) return;
+    setDirection(lastCandleDirection);
+  }, [autoStrategy, strategyStopped, lastCandleDirection]);
+
+  useEffect(() => {
+    if (!autoStrategy || strategyStopped || !openPositions.length) return;
+    const closed = openPositions.filter(position =>
+      position.status !== 'open' && !previousClosedIds.current.has(position.contract_id)
+    );
+    if (!closed.length) return;
+    closed.forEach(position => previousClosedIds.current.add(position.contract_id));
+    const result = closed.reduce((total, position) => total + Number(position.profit || 0), 0);
+    if (!result) return;
+    setSessionProfit(previous => {
+      const next = previous + result;
+      const target = Number(takeProfit);
+      const limit = Number(stopLoss);
+      if ((target > 0 && next >= target) || (limit > 0 && next <= -limit)) {
+        setStrategyStopped(true);
+      }
+      return next;
+    });
+    if (martingale) {
+      const loss = result < 0;
+      const nextStake = loss
+        ? Number(previousStake.current || baseStake.current) * 2
+        : Number(baseStake.current);
+      previousStake.current = String(nextStake);
+      setStake(nextStake.toFixed(2));
+    }
+  }, [autoStrategy, strategyStopped, openPositions, takeProfit, stopLoss, martingale, stake]);
 
   const durationOptions = useMemo(
     () => getDurationOptions(contracts, getDurationUnitLabels(localize)),
@@ -166,9 +261,16 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
 
   const { proposal } = useProposal(tradingWs, tradingIsConnected, proposalParams);
 
+  useEffect(() => {
+    if (!autoStrategy || strategyStopped || !isAuthenticated || !proposal || !candleEpoch || isBuying) return;
+    if (lastAutoTradeEpoch.current === candleEpoch || openPositions.length > 0) return;
+    lastAutoTradeEpoch.current = candleEpoch;
+    void buyWithProposal(proposal);
+  }, [autoStrategy, strategyStopped, isAuthenticated, proposal, candleEpoch, isBuying, openPositions.length, buyWithProposal]);
+
   const buyContract = useCallback(async () => {
-    if (proposal) await buyWithProposal(proposal);
-  }, [proposal, buyWithProposal]);
+    if (proposal && (!autoStrategy || !strategyStopped)) await buyWithProposal(proposal);
+  }, [proposal, buyWithProposal, autoStrategy, strategyStopped]);
 
   return {
     ws: tradingWs,
@@ -208,5 +310,24 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     sellingId,
     sellError,
     clearSellError,
+    autoStrategy,
+    setAutoStrategy: (value: boolean) => {
+      setAutoStrategy(value);
+      if (value) {
+        baseStake.current = stake;
+        previousStake.current = stake;
+        setStrategyStopped(false);
+        setSessionProfit(0);
+        previousClosedIds.current.clear();
+      }
+    },
+    martingale,
+    setMartingale,
+    takeProfit,
+    setTakeProfit,
+    stopLoss,
+    setStopLoss,
+    sessionProfit,
+    strategyStopped,
   };
 }
