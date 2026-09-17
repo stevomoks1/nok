@@ -105,6 +105,11 @@ export function LiveRiseFall({
       setStopLoss={trading.setStopLoss}
       sessionProfit={trading.sessionProfit}
       strategyStopped={trading.strategyStopped}
+      candleTimeframe={trading.candleTimeframe}
+      setCandleTimeframe={trading.setCandleTimeframe}
+      martingaleMultiplier={trading.martingaleMultiplier}
+      setMartingaleMultiplier={trading.setMartingaleMultiplier}
+      strategyMetrics={trading.strategyMetrics}
       openPositions={trading.openPositions}
       sellContract={trading.sellContract}
       sellingId={trading.sellingId}

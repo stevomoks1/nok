@@ -141,6 +141,11 @@ export interface RiseFallViewProps {
   setStopLoss: (value: string) => void;
   sessionProfit: number;
   strategyStopped: boolean;
+  candleTimeframe: number;
+  setCandleTimeframe: (value: number) => void;
+  martingaleMultiplier: string;
+  setMartingaleMultiplier: (value: string) => void;
+  strategyMetrics: import('../lib/candle-strategy').StrategyMetrics;
 
   // Positions
   openPositions: OpenPosition[];
@@ -231,6 +236,11 @@ export function RiseFallView({
   setStopLoss,
   sessionProfit,
   strategyStopped,
+  candleTimeframe,
+  setCandleTimeframe,
+  martingaleMultiplier,
+  setMartingaleMultiplier,
+  strategyMetrics,
   openPositions,
   chartData,
   getQuotes,
@@ -457,6 +467,11 @@ export function RiseFallView({
         onStopLossChange={setStopLoss}
         sessionProfit={sessionProfit}
         strategyStopped={strategyStopped}
+        candleTimeframe={candleTimeframe}
+        onCandleTimeframeChange={setCandleTimeframe}
+        martingaleMultiplier={martingaleMultiplier}
+        onMartingaleMultiplierChange={setMartingaleMultiplier}
+        strategyMetrics={strategyMetrics}
         isAuthenticated={authState === 'authenticated'}
         editMode={editMode}
         onSelect={onSelect}
@@ -581,6 +596,11 @@ export function RiseFallView({
                       onStopLossChange={setStopLoss}
                       sessionProfit={sessionProfit}
                       strategyStopped={strategyStopped}
+                      candleTimeframe={candleTimeframe}
+                      onCandleTimeframeChange={setCandleTimeframe}
+                      martingaleMultiplier={martingaleMultiplier}
+                      onMartingaleMultiplierChange={setMartingaleMultiplier}
+                      strategyMetrics={strategyMetrics}
                       isAuthenticated={authState === 'authenticated'}
                     />
                   </CardContent>

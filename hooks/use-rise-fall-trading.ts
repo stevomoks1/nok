@@ -15,6 +15,7 @@ import type { UseBaseTradingParams } from '@/hooks/use-base-trading';
 import { useAppTranslations } from '@/components/custom/i18n-provider';
 import type { Direction, DurationSelectUnit, DurationOption, OpenPosition, ClosedPosition } from '../lib/types';
 import { getDurationOptions, getDurationUnitLabels, computeEndTimeEpoch } from '@/lib/duration-utils';
+import { CANDLE_TIMEFRAMES, type StrategyMetrics } from '@/lib/candle-strategy';
 
 const CONTRACT_TYPES = ['CALL', 'PUT'];
 
@@ -66,6 +67,11 @@ interface UseRiseFallTradingReturn {
   setStopLoss: (value: string) => void;
   sessionProfit: number;
   strategyStopped: boolean;
+  candleTimeframe: number;
+  setCandleTimeframe: (value: number) => void;
+  martingaleMultiplier: string;
+  setMartingaleMultiplier: (value: string) => void;
+  strategyMetrics: StrategyMetrics;
 }
 
 export type UseRiseFallTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed'>;
@@ -106,15 +112,28 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
   const [stopLoss, setStopLoss] = useState('0');
   const [sessionProfit, setSessionProfit] = useState(0);
   const [strategyStopped, setStrategyStopped] = useState(false);
+  const [candleTimeframe, setCandleTimeframe] = useState(60);
+  const [martingaleMultiplier, setMartingaleMultiplier] = useState('2');
+  const [strategyMetrics, setStrategyMetrics] = useState<StrategyMetrics>({
+    totalTrades: 0,
+    wins: 0,
+    losses: 0,
+    winRate: 0,
+    maxDrawdown: 0,
+    averageLossStreak: 0,
+  });
   const [lastCandleDirection, setLastCandleDirection] = useState<Direction | null>(null);
   const [candleEpoch, setCandleEpoch] = useState<number | null>(null);
-  const [candleClose, setCandleClose] = useState<number | null>(null);
-  const [candleOpen, setCandleOpen] = useState<number | null>(null);
   const candleRef = useRef<{ epoch: number; open: number; close: number } | null>(null);
+  const [autoSignal, setAutoSignal] = useState<{ epoch: number; direction: Direction } | null>(null);
   const previousClosedIds = useRef<Set<number>>(new Set());
   const previousStake = useRef<string>('10');
   const baseStake = useRef<string>('10');
   const lastAutoTradeEpoch = useRef<number | null>(null);
+  const peakProfit = useRef(0);
+  const currentLossStreak = useRef(0);
+  const lossStreakTotal = useRef(0);
+  const lossStreakCount = useRef(0);
 
   useEffect(() => {
     if (!tradingWs || !tradingIsConnected || !activeSymbol) return;
@@ -126,12 +145,14 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
       if (!active) return;
       const previous = candleRef.current;
       if (previous && previous.epoch !== candle.epoch) {
-        setLastCandleDirection(previous.close >= previous.open ? 'CALL' : 'PUT');
+        const previousDirection = previous.close === previous.open
+          ? null
+          : previous.close > previous.open ? 'CALL' : 'PUT';
+        setLastCandleDirection(previousDirection);
+        setAutoSignal(previousDirection ? { epoch: candle.epoch, direction: previousDirection } : null);
+        setCandleEpoch(candle.epoch);
       }
       candleRef.current = { epoch: candle.epoch, open: candle.open, close: candle.close };
-      setCandleEpoch(candle.epoch);
-      setCandleOpen(candle.open);
-      setCandleClose(candle.close);
     });
     tradingWs.send({
       ticks_history: activeSymbol.underlying_symbol,
@@ -144,14 +165,10 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
       active = false;
       unsubscribe();
       candleRef.current = null;
+      setAutoSignal(null);
       tradingWs.send({ forget_all: 'ohlc' }).catch(() => {});
     };
-  }, [tradingWs, tradingIsConnected, activeSymbol]);
-
-  useEffect(() => {
-    if (candleOpen === null || candleClose === null) return;
-    setLastCandleDirection(candleClose >= candleOpen ? 'CALL' : 'PUT');
-  }, [candleEpoch, candleOpen, candleClose]);
+  }, [tradingWs, tradingIsConnected, activeSymbol, candleTimeframe]);
 
   useEffect(() => {
     if (!autoStrategy || strategyStopped || !lastCandleDirection) return;
@@ -166,9 +183,22 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     if (!closed.length) return;
     closed.forEach(position => previousClosedIds.current.add(position.contract_id));
     const result = closed.reduce((total, position) => total + Number(position.profit || 0), 0);
-    if (!result) return;
+    const wins = closed.filter(position => Number(position.profit || 0) > 0).length;
+    const losses = closed.length - wins;
+    closed.forEach(position => {
+      if (Number(position.profit || 0) > 0) {
+        if (currentLossStreak.current > 0) {
+          lossStreakTotal.current += currentLossStreak.current;
+          lossStreakCount.current += 1;
+        }
+        currentLossStreak.current = 0;
+      } else {
+        currentLossStreak.current += 1;
+      }
+    });
     setSessionProfit(previous => {
       const next = previous + result;
+      peakProfit.current = Math.max(peakProfit.current, next);
       const target = Number(takeProfit);
       const limit = Number(stopLoss);
       if ((target > 0 && next >= target) || (limit > 0 && next <= -limit)) {
@@ -176,15 +206,28 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
       }
       return next;
     });
+    setStrategyMetrics(previous => {
+      const totalTrades = previous.totalTrades + closed.length;
+      return {
+        totalTrades,
+        wins: previous.wins + wins,
+        losses: previous.losses + losses,
+        winRate: totalTrades ? ((previous.wins + wins) / totalTrades) * 100 : 0,
+        maxDrawdown: Math.max(previous.maxDrawdown, peakProfit.current - sessionProfit - result),
+        averageLossStreak: lossStreakCount.current
+          ? lossStreakTotal.current / lossStreakCount.current
+          : previous.averageLossStreak,
+      };
+    });
     if (martingale) {
       const loss = result < 0;
       const nextStake = loss
-        ? Number(previousStake.current || baseStake.current) * 2
+        ? Number(previousStake.current || baseStake.current) * Math.max(1, Number(martingaleMultiplier) || 1)
         : Number(baseStake.current);
       previousStake.current = String(nextStake);
       setStake(nextStake.toFixed(2));
     }
-  }, [autoStrategy, strategyStopped, openPositions, takeProfit, stopLoss, martingale, stake]);
+  }, [autoStrategy, strategyStopped, openPositions, takeProfit, stopLoss, martingale, martingaleMultiplier, stake, sessionProfit]);
 
   const durationOptions = useMemo(
     () => getDurationOptions(contracts, getDurationUnitLabels(localize)),
@@ -235,13 +278,18 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     const stakeNum = parseFloat(stake);
     if (!stakeNum || stakeNum <= 0) return null;
 
+    const strategyDirection = autoStrategy && autoSignal ? autoSignal.direction : direction;
     const base = {
-      contractType: allowEquals ? `${direction}E` : direction,
+      contractType: allowEquals ? `${strategyDirection}E` : strategyDirection,
       symbol: activeSymbol.underlying_symbol,
       amount: stakeNum,
       basis: 'stake' as const,
       currency: 'USD',
     };
+
+    if (autoStrategy) {
+      return { ...base, duration: candleTimeframe, durationUnit: 's' };
+    }
 
     if (durationUnit === 'end-time') {
       const dateExpiry = computeEndTimeEpoch(endDate, endTime);
@@ -257,16 +305,19 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     }
 
     return { ...base, duration, durationUnit };
-  }, [activeSymbol, direction, allowEquals, stake, duration, durationUnit, endDate, endTime, isBuying, durationOptions, durationOptionsSymbol]);
+  }, [activeSymbol, direction, allowEquals, stake, duration, durationUnit, endDate, endTime, isBuying, durationOptions, durationOptionsSymbol, autoStrategy, autoSignal, candleTimeframe]);
 
   const { proposal } = useProposal(tradingWs, tradingIsConnected, proposalParams);
 
   useEffect(() => {
     if (!autoStrategy || strategyStopped || !isAuthenticated || !proposal || !candleEpoch || isBuying) return;
+    if (!autoSignal || autoSignal.epoch !== candleEpoch) return;
+    const expectedContractType = allowEquals ? `${autoSignal.direction}E` : autoSignal.direction;
+    if (proposal.contractType !== expectedContractType || proposal.durationSeconds !== candleTimeframe) return;
     if (lastAutoTradeEpoch.current === candleEpoch || openPositions.length > 0) return;
     lastAutoTradeEpoch.current = candleEpoch;
     void buyWithProposal(proposal);
-  }, [autoStrategy, strategyStopped, isAuthenticated, proposal, candleEpoch, isBuying, openPositions.length, buyWithProposal]);
+  }, [autoStrategy, strategyStopped, isAuthenticated, proposal, candleEpoch, autoSignal, allowEquals, candleTimeframe, isBuying, openPositions.length, buyWithProposal]);
 
   const buyContract = useCallback(async () => {
     if (proposal && (!autoStrategy || !strategyStopped)) await buyWithProposal(proposal);
@@ -319,6 +370,12 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
         setStrategyStopped(false);
         setSessionProfit(0);
         previousClosedIds.current.clear();
+        setAutoSignal(null);
+        peakProfit.current = 0;
+        currentLossStreak.current = 0;
+        lossStreakTotal.current = 0;
+        lossStreakCount.current = 0;
+        setStrategyMetrics({ totalTrades: 0, wins: 0, losses: 0, winRate: 0, maxDrawdown: 0, averageLossStreak: 0 });
       }
     },
     martingale,
@@ -329,5 +386,12 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     setStopLoss,
     sessionProfit,
     strategyStopped,
+    candleTimeframe,
+    setCandleTimeframe: value => {
+      if (CANDLE_TIMEFRAMES.some(option => option.seconds === value)) setCandleTimeframe(value);
+    },
+    martingaleMultiplier,
+    setMartingaleMultiplier,
+    strategyMetrics,
   };
 }

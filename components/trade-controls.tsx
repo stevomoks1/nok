@@ -15,6 +15,7 @@ import { EndTimePicker } from '@/components/custom/end-time-picker';
 import { StrategyControls } from '@/components/custom/strategy-controls';
 import type { DerivWS, ActiveSymbol, ProposalInfo, BuyResult } from '@deriv/core';
 import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
+import type { StrategyMetrics } from '../lib/candle-strategy';
 
 interface TradeControlsProps {
   direction: Direction;
@@ -54,6 +55,11 @@ interface TradeControlsProps {
   onStopLossChange: (value: string) => void;
   sessionProfit: number;
   strategyStopped: boolean;
+  candleTimeframe: number;
+  onCandleTimeframeChange: (value: number) => void;
+  martingaleMultiplier: string;
+  onMartingaleMultiplierChange: (value: string) => void;
+  strategyMetrics: StrategyMetrics;
 }
 
 export function TradeControls({
@@ -92,6 +98,11 @@ export function TradeControls({
   onStopLossChange,
   sessionProfit,
   strategyStopped,
+  candleTimeframe,
+  onCandleTimeframeChange,
+  martingaleMultiplier,
+  onMartingaleMultiplierChange,
+  strategyMetrics,
 }: TradeControlsProps) {
   const { localize } = useAppTranslations();
 
@@ -168,6 +179,11 @@ export function TradeControls({
         onStopLossChange={onStopLossChange}
         sessionProfit={sessionProfit}
         strategyStopped={strategyStopped}
+        candleTimeframe={candleTimeframe}
+        onCandleTimeframeChange={onCandleTimeframeChange}
+        martingaleMultiplier={martingaleMultiplier}
+        onMartingaleMultiplierChange={onMartingaleMultiplierChange}
+        strategyMetrics={strategyMetrics}
       />
 
       {/* Allow equals */}

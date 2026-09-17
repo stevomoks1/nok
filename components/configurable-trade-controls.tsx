@@ -33,6 +33,7 @@ import { StrategyControls } from '@/components/custom/strategy-controls';
 import type { DerivWS, ActiveSymbol, ProposalInfo, BuyResult } from '@deriv/core';
 import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
 import type { BlockKey, ControlKey, RiseFallAppConfig, StyleVariant } from '../lib/app-config';
+import type { StrategyMetrics } from '../lib/candle-strategy';
 
 /** Human labels shown on each draggable block in rearrange mode. */
 function getBlockLabels(
@@ -177,6 +178,11 @@ export interface ConfigurableTradeControlsProps {
   onStopLossChange: (value: string) => void;
   sessionProfit: number;
   strategyStopped: boolean;
+  candleTimeframe: number;
+  onCandleTimeframeChange: (value: number) => void;
+  martingaleMultiplier: string;
+  onMartingaleMultiplierChange: (value: string) => void;
+  strategyMetrics: StrategyMetrics;
   /** Edit mode — control rows become selectable (click opens its accordion). */
   editMode?: boolean;
   /** Called when a control row is clicked in edit mode. */
@@ -243,6 +249,11 @@ export function ConfigurableTradeControls(props: ConfigurableTradeControlsProps)
     onStopLossChange,
     sessionProfit,
     strategyStopped,
+    candleTimeframe,
+    onCandleTimeframeChange,
+    martingaleMultiplier,
+    onMartingaleMultiplierChange,
+    strategyMetrics,
     editMode,
     onSelect,
     selectedKey,
@@ -726,6 +737,11 @@ export function ConfigurableTradeControls(props: ConfigurableTradeControlsProps)
         onStopLossChange={onStopLossChange}
         sessionProfit={sessionProfit}
         strategyStopped={strategyStopped}
+        candleTimeframe={candleTimeframe}
+        onCandleTimeframeChange={onCandleTimeframeChange}
+        martingaleMultiplier={martingaleMultiplier}
+        onMartingaleMultiplierChange={onMartingaleMultiplierChange}
+        strategyMetrics={strategyMetrics}
       />
       {config.order.map((key) => {
         // Chart only renders where a chartSlot is provided (the no-code mobile

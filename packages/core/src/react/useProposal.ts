@@ -60,6 +60,13 @@ export function useProposal(
           longcode: resp.proposal.longcode,
           minStake: parseFloat(resp.proposal.validation_params?.stake?.min ?? '0'),
           maxPayout: parseFloat(resp.proposal.validation_params?.payout?.max ?? '0'),
+          contractType: params.contractType,
+          durationSeconds: params.dateExpiry !== undefined
+            ? params.dateExpiry - Math.floor(Date.now() / 1000)
+            : params.durationUnit === 'm' ? params.duration * 60
+              : params.durationUnit === 'h' ? params.duration * 3600
+                : params.durationUnit === 'd' ? params.duration * 86400
+                  : params.duration,
         });
       }
     }).then((sub) => {

@@ -85,6 +85,8 @@ export interface ProposalInfo {
   longcode: string;
   minStake: number;
   maxPayout: number;
+  contractType?: string;
+  durationSeconds?: number;
 }
 
 export interface BuyResponse {
