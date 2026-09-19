@@ -1,5 +1,6 @@
 import { Providers } from './providers';
 import { DerivWSProvider } from './deriv-ws-provider';
+import { TradingProvider } from './trading-provider';
 import { Toaster } from '@/components/ui/sonner';
 import ViewportScaler from './ViewportScaler';
 import { EnvCheck } from './env-check';
@@ -29,7 +30,9 @@ export function TemplateLayout({ children }: { children: React.ReactNode }) {
   return (
     <Providers>
       <DerivWSProvider>
-        <ViewportScaler>{children}</ViewportScaler>
+        <TradingProvider>
+          <ViewportScaler>{children}</ViewportScaler>
+        </TradingProvider>
       </DerivWSProvider>
       <Toaster />
       <EnvCheck />

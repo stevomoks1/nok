@@ -365,6 +365,7 @@ export function RiseFallView({
                 isConnectionOpened={isConnected}
                 isMobile={isMobile}
                 chartData={chartData}
+                    candleTimeframe={candleTimeframe}
                 getQuotes={getQuotes}
                 subscribeQuotes={subscribeQuotes}
                 unsubscribeQuotes={unsubscribeQuotes}

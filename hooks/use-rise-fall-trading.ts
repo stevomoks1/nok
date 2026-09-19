@@ -19,7 +19,7 @@ import { CANDLE_TIMEFRAMES, type StrategyMetrics } from '@/lib/candle-strategy';
 
 const CONTRACT_TYPES = ['CALL', 'PUT'];
 
-interface UseRiseFallTradingReturn {
+export interface UseRiseFallTradingReturn {
   ws: DerivWS | null;
   isConnected: boolean;
   isLoading: boolean;
@@ -112,7 +112,11 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
   const [stopLoss, setStopLoss] = useState('0');
   const [sessionProfit, setSessionProfit] = useState(0);
   const [strategyStopped, setStrategyStopped] = useState(false);
-  const [candleTimeframe, setCandleTimeframe] = useState(60);
+  const [candleTimeframe, setCandleTimeframe] = useState(() => {
+    if (typeof window === 'undefined') return 60;
+    const saved = Number(window.localStorage.getItem('chartTimeframe'));
+    return CANDLE_TIMEFRAMES.some(option => option.seconds === saved) ? saved : 60;
+  });
   const [martingaleMultiplier, setMartingaleMultiplier] = useState('2');
   const [strategyMetrics, setStrategyMetrics] = useState<StrategyMetrics>({
     totalTrades: 0,
@@ -400,7 +404,9 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     strategyStopped,
     candleTimeframe,
     setCandleTimeframe: value => {
-      if (CANDLE_TIMEFRAMES.some(option => option.seconds === value)) setCandleTimeframe(value);
+      if (!CANDLE_TIMEFRAMES.some(option => option.seconds === value)) return;
+      setCandleTimeframe(value);
+      window.localStorage.setItem('chartTimeframe', String(value));
     },
     martingaleMultiplier,
     setMartingaleMultiplier,

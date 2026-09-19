@@ -19,13 +19,14 @@ export interface RiseFallChartProps {
   endEpoch?: number;
   /** Contract markers rendered on the chart when trades are placed. */
   contractsArray?: ContractMarker[];
+  candleTimeframe?: number;
 }
 
 export function RiseFallChart(props: RiseFallChartProps) {
   return (
     <SmartChartWrapper
       chartId="rise-fall-chart"
-      defaultGranularity={0}
+      defaultGranularity={props.candleTimeframe ?? 60}
       {...props}
     />
   );

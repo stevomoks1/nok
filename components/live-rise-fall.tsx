@@ -9,8 +9,8 @@
 
 import { useSmartChartsApi } from '@/hooks/use-smartcharts-api';
 import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
-import { useRiseFallTrading } from '../hooks/use-rise-fall-trading';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
+import { useTrading } from '@/components/custom/trading-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
 import { RiseFallView } from './rise-fall-view';
 import type { RiseFallAppConfig } from '../lib/app-config';
@@ -42,13 +42,7 @@ export function LiveRiseFall({
   const { ws, isConnected, isExhausted, auth } = useDerivWSContext();
   const { authState, accounts, activeAccount, login, signUp, logout, switchAccount } = auth;
 
-  const trading = useRiseFallTrading({
-    ws,
-    isConnected,
-    isExhausted,
-    isAuthenticated: !!auth.wsUrl,
-    onAuthWSFailed: logout,
-  });
+  const trading = useTrading();
 
   const { chartData } = useSmartChartChartData(trading.ws, trading.isConnected, trading.symbols);
   const { getQuotes, subscribeQuotes, unsubscribeQuotes } = useSmartChartsApi(trading.ws);

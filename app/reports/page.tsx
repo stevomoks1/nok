@@ -3,8 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Localize } from '@deriv-com/translations';
-import { useRiseFallTrading } from '../../hooks/use-rise-fall-trading';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
+import { useTrading } from '@/components/custom/trading-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
 import { useAppTranslations } from '@/components/custom/i18n-provider';
 import { Header } from '@/components/custom/header';
@@ -31,7 +31,7 @@ export default function ReportsPage() {
   const contractTypeLabels = getRiseFallContractLabels(localize);
   const { ws, isConnected, isExhausted, auth } = useDerivWSContext();
   const { authState, accounts, activeAccount, login, signUp, logout, switchAccount } = auth;
-  const trading = useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticated: !!auth.wsUrl, onAuthWSFailed: logout });
+  const trading = useTrading();
 
   useEffect(() => {
     if (authState === 'unauthenticated' || authState === 'error') {
