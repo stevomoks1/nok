@@ -61,6 +61,7 @@ export function useProposal(
           minStake: parseFloat(resp.proposal.validation_params?.stake?.min ?? '0'),
           maxPayout: parseFloat(resp.proposal.validation_params?.payout?.max ?? '0'),
           contractType: params.contractType,
+          dateExpiry: resp.proposal.date_expiry,
           durationSeconds: params.dateExpiry !== undefined
             ? params.dateExpiry - Math.floor(Date.now() / 1000)
             : params.durationUnit === 'm' ? params.duration * 60

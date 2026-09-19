@@ -87,6 +87,7 @@ export interface ProposalInfo {
   maxPayout: number;
   contractType?: string;
   durationSeconds?: number;
+  dateExpiry?: number;
 }
 
 export interface BuyResponse {

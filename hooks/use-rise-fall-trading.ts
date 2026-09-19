@@ -124,8 +124,8 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
   });
   const [lastCandleDirection, setLastCandleDirection] = useState<Direction | null>(null);
   const [candleEpoch, setCandleEpoch] = useState<number | null>(null);
-  const candleRef = useRef<{ epoch: number; open: number; close: number } | null>(null);
-  const [autoSignal, setAutoSignal] = useState<{ epoch: number; direction: Direction } | null>(null);
+  const candleRef = useRef<{ openTime: number; open: number; close: number } | null>(null);
+  const [autoSignal, setAutoSignal] = useState<{ epoch: number; direction: Direction; expiry: number } | null>(null);
   const previousClosedIds = useRef<Set<number>>(new Set());
   const previousStake = useRef<string>('10');
   const baseStake = useRef<string>('10');
@@ -141,20 +141,26 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     let active = true;
     const unsubscribe = tradingWs.onMessage((data) => {
       if (data.msg_type !== 'ohlc') return;
-      const candle = data.ohlc as { epoch?: number; open?: number; close?: number } | undefined;
-      if (!candle?.epoch || candle.open === undefined || candle.close === undefined) return;
+      const candle = data.ohlc as { open_time?: number; open?: number; close?: number } | undefined;
+      if (!candle?.open_time || candle.open === undefined || candle.close === undefined) return;
       if (!active) return;
       const previous = candleRef.current;
-      if (previous && previous.epoch !== candle.epoch) {
+      if (previous && previous.openTime !== candle.open_time) {
         const previousDirection = previous.close === previous.open
           ? null
           : previous.close > previous.open ? 'CALL' : 'PUT';
         setLastCandleDirection(previousDirection);
-        setAutoSignal(previousDirection ? { epoch: candle.epoch, direction: previousDirection } : null);
-        setCandleEpoch(candle.epoch);
-        pendingEntryEpoch.current = previousDirection ? candle.epoch : null;
+        setAutoSignal(previousDirection
+          ? {
+              epoch: candle.open_time,
+              direction: previousDirection,
+              expiry: candle.open_time + candleTimeframe,
+            }
+          : null);
+        setCandleEpoch(candle.open_time);
+        pendingEntryEpoch.current = previousDirection ? candle.open_time : null;
       }
-      candleRef.current = { epoch: candle.epoch, open: candle.open, close: candle.close };
+      candleRef.current = { openTime: candle.open_time, open: candle.open, close: candle.close };
     });
     tradingWs.send({
       ticks_history: activeSymbol.underlying_symbol,
@@ -291,7 +297,8 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     };
 
     if (autoStrategy) {
-      return { ...base, duration: candleTimeframe, durationUnit: 's' };
+      if (!autoSignal) return null;
+      return { ...base, duration: 0, durationUnit: 'd', dateExpiry: autoSignal.expiry };
     }
 
     if (durationUnit === 'end-time') {
@@ -317,7 +324,7 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     if (!autoSignal || autoSignal.epoch !== candleEpoch) return;
     if (pendingEntryEpoch.current !== candleEpoch) return;
     const expectedContractType = allowEquals ? `${autoSignal.direction}E` : autoSignal.direction;
-    if (proposal.contractType !== expectedContractType || proposal.durationSeconds !== candleTimeframe) return;
+    if (proposal.contractType !== expectedContractType || proposal.dateExpiry !== autoSignal.expiry) return;
     if (lastAutoTradeEpoch.current === candleEpoch || openPositions.length > 0) return;
     lastAutoTradeEpoch.current = candleEpoch;
     pendingEntryEpoch.current = null;
